@@ -35,17 +35,19 @@ class ColourButton(Button):
         src = "images/button{0}.png".format(index)
         Button.__init__(self, icon_source=src, background_color=COLOURS[index], **kw)
 
-class ChromioGrid(FloatLayout):
-    def __init__(self, gridradius=GRIDRADIUS, **kw):
-        FloatLayout.__init__(self, **kw)
+class ChromioGrid(object):
+    def __init__(self, layout, gridradius=GRIDRADIUS):
+        self.layout = layout # should be a FloatLayout
         self.grid = hexgrid.HexagonGrid(gridradius)
         self.images = hexgrid.HexagonGrid(gridradius)
         self.randomise()
         self.filling = False
+        self.steps = 0
+        self.filled = False
 
     def randomise(self):
         """ randomise the contents of the grid """
-        cx, cy = self.width / 2.0, self.height / 2.0
+        cx, cy = self.layout.width / 2.0, self.layout.height / 2.0
         scale = cx / self.grid.maxradius
         maxcolour = len(COLOURS) - 1
         for i in range(len(self.grid)):
@@ -54,22 +56,25 @@ class ChromioGrid(FloatLayout):
             w = self.images[i]
             if w is None:
                 w = Image(size_hint=(scale,scale))
-                self.add_widget(w)
+                self.layout.add_widget(w)
                 self.images[i] = w
             wx, wy = hexagons.Spiral(i).centre()
             w.pos_hint = {"x":(wx - 0.5) * scale + cx,
                           "y":(wy - 0.5) * scale + cy}
             w.source = src
+        self.steps = 0
+        self.filled = False
 
     def start_fill(self, butn):
         """ flood fill the grid with a specified index """
-        if self.filling:
+        if self.filling or self.filled:
             return
         index = butn.index
         current = self.grid[0]
         if current == index:
             return
         self.filling = True
+        self.steps += 1
         agenda = deque([0]) # start at the centre
         seen = set()
         while agenda:
@@ -89,14 +94,16 @@ class ChromioGrid(FloatLayout):
             self.grid[i] = index
             self.images[i].source = src
         self.filling = False
+        self.filled = len(set(self.grid.contents)) == 1
 
 class ChromioApp(App):
     def build(self):
         self.content = root = BoxLayout(
             orientation="horizontal", padding=20, spacing=20)
-        grid = ChromioGrid(size_hint=(0.6,1))
+        hexpane = FloatLayout(size_hint=(0.6, 1))
+        grid = ChromioGrid(hexpane)
         buttons = GridLayout(cols=2, size_hint=(0.4,1))
-        root.add_widget(grid)
+        root.add_widget(hexpane)
         root.add_widget(buttons)
         for i in range(6):
             b = ColourButton(i, text="{0}".format(i))
