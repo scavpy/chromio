@@ -6,8 +6,11 @@ Chromio game
 import random
 from functools import partial
 from collections import deque
+import shelve
 
 import kivy
+kivy.require('1.3.0')
+
 from kivy.app import App
 from kivy.properties import (ObjectProperty, StringProperty, NumericProperty, BooleanProperty)
 from kivy.uix.widget import Widget
@@ -30,6 +33,8 @@ COLOURS = [(1, 0, 0, 1), (0.9, 0.8, 0, 1),
 
 GRIDRADIUS = 10
 
+STATS = shelve.open("stats.shelve")
+
 class ColourButton(Button):
     icon_source = StringProperty()
     def __init__(self, index, **kw):
@@ -43,6 +48,7 @@ class ChromioGrid(FloatLayout):
 
     def __init__(self, gridradius=GRIDRADIUS, **kw):
         FloatLayout.__init__(self, **kw)
+        self.gridradius = gridradius
         self.grid = hexgrid.HexagonGrid(gridradius)
         self.images = hexgrid.HexagonGrid(gridradius)
         self.randomise()
@@ -114,10 +120,9 @@ class ChromioApp(App):
     def build(self):
         self.content = root = BoxLayout(
             orientation="horizontal", padding=20, spacing=20)
-        hexpane = FloatLayout(size_hint=(0.6, 1))
-        grid = ChromioGrid(hexpane)
+        grid = ChromioGrid(GRIDRADIUS, size_hint=(0.6, 1))
         buttons = GridLayout(cols=2, size_hint=(0.4,1))
-        root.add_widget(hexpane)
+        root.add_widget(grid)
         root.add_widget(buttons)
         for i in range(6):
             b = ColourButton(i, text="{0}".format(i))
@@ -125,7 +130,7 @@ class ChromioApp(App):
             b.bind(on_press=grid.start_fill)
         rb = Button(text="Random")
         buttons.add_widget(rb)
-        sizer = Slider(min=6, max=12, value=10)
+        sizer = Slider(min=4, max=16, value=GRIDRADIUS)
         buttons.add_widget(sizer)
         rb.bind(on_press=lambda x: grid.resize(int(round(sizer.value, 0))))
         grid.bind(filled=self.game_end_check, steps=self.steps_update)
@@ -138,9 +143,22 @@ class ChromioApp(App):
     def game_end_check(self, grid, filled):
         if filled:
             print "Filled in {0} steps!".format(grid.steps)
+            key = "best{0}".format(grid.gridradius)
+            best = STATS.get(key)
+            if best is None or grid.steps < best:
+                STATS[key] = grid.steps
+                self.steplabel.color = [0.5, 1.0, 0.5, 1.0]
 
     def steps_update(self, grid, steps):
-        self.steplabel.text = str(steps)
+        label = self.steplabel
+        label.text = str(steps)
+        key = "best{0}".format(grid.gridradius)
+        best = STATS.get(key)
+        if best is not None:
+            if steps > best:
+                label.color = [1.0, 0.5, 0.5, 1.0]
+            else:
+                label.color = [1.0, 1.0, 1.0, 1.0]
 
 if __name__ in ('__android__', '__main__'):
     ChromioApp().run()
