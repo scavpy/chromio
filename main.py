@@ -84,6 +84,7 @@ class ChromioGrid(FloatLayout):
                     self.remove_widget(w)
             self.images = hexgrid.HexagonGrid(gridradius)
         self.randomise()
+        self.gridradius = gridradius
 
     def start_fill(self, butn):
         """ flood fill the grid with a specified index """
