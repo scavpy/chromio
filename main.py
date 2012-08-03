@@ -9,10 +9,12 @@ from collections import deque
 
 import kivy
 from kivy.app import App
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.properties import (ObjectProperty, StringProperty, NumericProperty, BooleanProperty)
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.image import Image
+from kivy.uix.slider import Slider
+from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -35,35 +37,47 @@ class ColourButton(Button):
         src = "images/button{0}.png".format(index)
         Button.__init__(self, icon_source=src, background_color=COLOURS[index], **kw)
 
-class ChromioGrid(object):
-    def __init__(self, layout, gridradius=GRIDRADIUS):
-        self.layout = layout # should be a FloatLayout
+class ChromioGrid(FloatLayout):
+    filled = BooleanProperty()
+    steps = NumericProperty()
+
+    def __init__(self, gridradius=GRIDRADIUS, **kw):
+        FloatLayout.__init__(self, **kw)
         self.grid = hexgrid.HexagonGrid(gridradius)
         self.images = hexgrid.HexagonGrid(gridradius)
         self.randomise()
         self.filling = False
-        self.steps = 0
         self.filled = False
 
     def randomise(self):
         """ randomise the contents of the grid """
-        cx, cy = self.layout.width / 2.0, self.layout.height / 2.0
-        scale = cx / self.grid.maxradius
+        scale = 0.5 / self.grid.maxradius
         maxcolour = len(COLOURS) - 1
         for i in range(len(self.grid)):
             c = self.grid[i] = random.randint(0, maxcolour)
             src = "images/button{0}.png".format(c)
             w = self.images[i]
             if w is None:
-                w = Image(size_hint=(scale,scale))
-                self.layout.add_widget(w)
+                w = Image(size_hint=(scale, scale))
+                self.add_widget(w)
                 self.images[i] = w
-            wx, wy = hexagons.Spiral(i).centre()
-            w.pos_hint = {"x":(wx - 0.5) * scale + cx,
-                          "y":(wy - 0.5) * scale + cy}
+                wx, wy = hexagons.Spiral(i).centre()
+                w.pos_hint = {"x":(wx - 0.5) * scale + 0.5,
+                              "y":(wy - 0.5) * scale + 0.5}
             w.source = src
-        self.steps = 0
         self.filled = False
+        self.steps = 0
+
+    def resize(self, gridradius):
+        """ resize the grid if necessary """
+        if self.grid.maxradius != gridradius:
+            self.grid = hexgrid.HexagonGrid(gridradius)
+            for i in range(len(self.images)):
+                w = self.images[i]
+                if w is not None:
+                    self.remove_widget(w)
+            self.images = hexgrid.HexagonGrid(gridradius)
+        self.randomise()
 
     def start_fill(self, butn):
         """ flood fill the grid with a specified index """
@@ -109,7 +123,24 @@ class ChromioApp(App):
             b = ColourButton(i, text="{0}".format(i))
             buttons.add_widget(b)
             b.bind(on_press=grid.start_fill)
+        rb = Button(text="Random")
+        buttons.add_widget(rb)
+        sizer = Slider(min=6, max=12, value=10)
+        buttons.add_widget(sizer)
+        rb.bind(on_press=lambda x: grid.resize(int(round(sizer.value, 0))))
+        grid.bind(filled=self.game_end_check, steps=self.steps_update)
+        self.steplabel = Label(text="0", 
+                               pos_hint={"x":-0.45, "y":0.45},
+                               font_size=20)
+        grid.add_widget(self.steplabel)
         return root
+
+    def game_end_check(self, grid, filled):
+        if filled:
+            print "Filled in {0} steps!".format(grid.steps)
+
+    def steps_update(self, grid, steps):
+        self.steplabel.text = str(steps)
 
 if __name__ in ('__android__', '__main__'):
     ChromioApp().run()
