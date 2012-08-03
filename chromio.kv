@@ -5,4 +5,7 @@
         allow_stretch: True
         width: root.width - 10
         pos: root.x + 5, root.y + (root.height - self.height) / 2
-        source: root.icon_source
+        source: "images/button{0}.png".format(root.index)
+
+<IconImage>:
+    source: "images/button{0}.png".format(root.index)

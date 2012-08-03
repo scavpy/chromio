@@ -36,11 +36,13 @@ GRIDRADIUS = 10
 STATS = shelve.open("stats.shelve")
 
 class ColourButton(Button):
-    icon_source = StringProperty()
-    def __init__(self, index, **kw):
-        self.index = index
-        src = "images/button{0}.png".format(index)
-        Button.__init__(self, icon_source=src, background_color=COLOURS[index], **kw)
+    index = NumericProperty()
+    def __init__(self, **kw):
+        Button.__init__(self, **kw)
+        self.background_color=COLOURS[self.index]
+
+class IconImage(Image):
+    index = NumericProperty()
 
 class ChromioGrid(FloatLayout):
     filled = BooleanProperty()
@@ -61,16 +63,16 @@ class ChromioGrid(FloatLayout):
         maxcolour = len(COLOURS) - 1
         for i in range(len(self.grid)):
             c = self.grid[i] = random.randint(0, maxcolour)
-            src = "images/button{0}.png".format(c)
             w = self.images[i]
             if w is None:
-                w = Image(size_hint=(scale, scale))
+                w = IconImage(index=c, size_hint=(scale, scale))
                 self.add_widget(w)
                 self.images[i] = w
                 wx, wy = hexagons.Spiral(i).centre()
                 w.pos_hint = {"x":(wx - 0.5) * scale + 0.5,
                               "y":(wy - 0.5) * scale + 0.5}
-            w.source = src
+            else:
+                w.index = c
         self.filled = False
         self.steps = 0
 
@@ -126,7 +128,7 @@ class ChromioApp(App):
         root.add_widget(grid)
         root.add_widget(buttons)
         for i in range(6):
-            b = ColourButton(i, text="{0}".format(i))
+            b = ColourButton(index=i, text="{0}".format(i))
             buttons.add_widget(b)
             b.bind(on_press=grid.start_fill)
         rb = Button(text="Random")
