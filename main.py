@@ -33,7 +33,10 @@ COLOURS = [(1, 0, 0, 1), (0.9, 0.8, 0, 1),
 
 GRIDRADIUS = 10
 
-STATS = shelve.open("stats.shelve")
+try:
+    STATS = shelve.open("stats.shelve", "c")
+except OSError:
+    STATS = {} # can't save stats
 
 class ColourButton(Button):
     index = NumericProperty()
@@ -42,7 +45,9 @@ class ColourButton(Button):
         self.background_color=COLOURS[self.index]
 
 class IconImage(Image):
+    prefix = "button"
     index = NumericProperty()
+
 
 class ChromioGrid(FloatLayout):
     filled = BooleanProperty()
@@ -121,6 +126,7 @@ class ChromioGrid(FloatLayout):
 
 class ChromioApp(App):
     def build(self):
+        Factory.register("IconImage", cls=IconImage)
         self.content = root = BoxLayout(
             orientation="horizontal", padding=20, spacing=20)
         grid = ChromioGrid(GRIDRADIUS, size_hint=(0.6, 1))
@@ -131,7 +137,7 @@ class ChromioApp(App):
             b = ColourButton(index=i, text="{0}".format(i))
             buttons.add_widget(b)
             b.bind(on_press=grid.start_fill)
-        rb = Button(text="Random")
+        rb = Button(text="Restart", font_size=20)
         buttons.add_widget(rb)
         sizer = Slider(min=4, max=16, value=GRIDRADIUS)
         buttons.add_widget(sizer)
@@ -149,7 +155,10 @@ class ChromioApp(App):
             key = "best{0}".format(grid.gridradius)
             best = STATS.get(key)
             if best is None or grid.steps < best:
-                STATS[key] = grid.steps
+                try:
+                    STATS[key] = grid.steps
+                except OSError:
+                    pass # oh well, ignore
                 self.steplabel.color = [0.5, 1.0, 0.5, 1.0]
 
     def steps_update(self, grid, steps):
